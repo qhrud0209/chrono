@@ -59,7 +59,7 @@ body {
 
 .search-input {
   flex: 1;
-  height: 52px;
+  height: 56px; /* slightly larger input */
   font-size: 16px;
   color: #0f172a;
   background: transparent;
@@ -105,25 +105,49 @@ body {
   width: min(720px, 100%);
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 0 0 20px 20px; /* keep rounded bottom corners */
-  margin-top: -18px; /* visually attach to form under hero gap */
-  border-top: none;
+  border-radius: 12px;
+  margin-top: 6px;
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
   overflow: hidden;
 }
-
 .suggestion-item {
   display: block;
   width: 100%;
   text-align: left;
-  padding: 12px 14px;
+  padding: 14px 16px; /* larger clickable area */
+  font-size: 16px; /* slightly larger text */
   background: #ffffff;
   color: #0f172a;
   border: none;
   cursor: pointer;
+  border-radius: 8px; /* keep focus ring rounded */
+}
+.suggestion-item:hover,
+.suggestion-item:focus,
+.suggestion-item:focus-visible {
+  background: #f3f4f6;
+  outline: none;
+  box-shadow: inset 0 0 0 2px rgba(59, 130, 246, 0.35);
 }
 
-.suggestion-item:hover,
-.suggestion-item:focus {
-  background: #f3f4f6;
+/* keyboard-selected active item */
+.suggestion-item.active {
+  background: #eef2ff;
+}
+
+/* keep outer corners rounded for first/last items */
+.suggestions .suggestion-item:first-child {
+  border-top-left-radius: 12px;
+  border-top-right-radius: 12px;
+}
+.suggestions .suggestion-item:last-child {
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+/* rounded, custom focus for the search button */
+.search-button:focus,
+.search-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
 }
