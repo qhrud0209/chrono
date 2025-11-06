@@ -1,11 +1,11 @@
-"use client";
+'use client';
 
-import { useState, useEffect, useRef, FormEvent } from "react";
-import { useRouter } from "next/navigation";
+import { useState, useEffect, useRef, FormEvent } from 'react';
+import { useRouter } from 'next/navigation';
 
 export default function Page() {
   const router = useRouter();
-  const [q, setQ] = useState("");
+  const [q, setQ] = useState('');
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -25,8 +25,8 @@ export default function Page() {
     }
 
     // Special-case suggestions for queries including "apec"
-    if (query.toLowerCase().includes("apec")) {
-      setSuggestions(["apec", "경주", "트럼프"]);
+    if (query.toLowerCase().includes('apec')) {
+      setSuggestions(['apec', '경주', '트럼프']);
       return;
     }
 
@@ -40,12 +40,12 @@ export default function Page() {
         const res = await fetch(`/api/related?q=${encodeURIComponent(query)}`, {
           signal: controller.signal,
         });
-        if (!res.ok) throw new Error("failed");
+        if (!res.ok) throw new Error('failed');
         const json = (await res.json()) as { related?: string[] };
         setSuggestions(json.related ?? []);
       } catch (err: any) {
         // 사용자가 입력을 바꾸면서 abort 된 경우는 무시
-        if (err?.name !== "AbortError") {
+        if (err?.name !== 'AbortError') {
           setSuggestions([]);
         }
       }
