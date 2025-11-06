@@ -1,0 +1,73 @@
+.canvas {
+  position: relative;
+  width: min(1180px, 95vw);
+  height: clamp(640px, 78vh, 880px);
+  margin: 0 auto;
+  background: #ffffff;
+  overflow: visible;
+}
+
+.canvas svg {
+  width: 100%;
+  height: 100%;
+}
+
+.linkLayer line {
+  transition: stroke 0.2s ease;
+}
+
+.linkActive {
+  stroke: rgba(130, 164, 255, 0.85) !important;
+  stroke-width: 3px !important;
+}
+
+.nodeGroup {
+  cursor: grab;
+  transition: filter 0.2s ease;
+}
+
+.nodeCircle {
+  transition:
+    r 0.25s ease,
+    fill 0.25s ease,
+    stroke 0.25s ease,
+    filter 0.35s ease;
+  filter: drop-shadow(0 6px 18px rgba(23, 36, 68, 0.16));
+}
+
+.nodeLabel {
+  font-family:
+    var(--font-noto-sans-kr),
+    var(--font-plus-jakarta),
+    'Noto Sans KR',
+    'SUIT Variable',
+    'Pretendard Variable',
+    'Pretendard',
+    sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  pointer-events: none;
+}
+
+.nodeActive {
+  cursor: grabbing;
+}
+
+.nodeActive .nodeCircle {
+  filter: drop-shadow(0 10px 24px rgba(16, 28, 52, 0.28));
+  stroke-width: 2px;
+}
+
+.dimmed {
+  opacity: 0.25;
+}
+
+.depthControls {
+  position: fixed;
+  right: clamp(16px, 4vw, 40px);
+  bottom: clamp(16px, 4vw, 40px);
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+}
