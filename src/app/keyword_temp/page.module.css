@@ -6,6 +6,9 @@
   align-items: center;
   background: #ffffff;
   color: #1e2d57;
+  font-family: var(--font-noto-sans-kr), var(--font-plus-jakarta),
+    'Noto Sans KR', 'SUIT Variable', 'Pretendard Variable', 'Pretendard',
+    sans-serif;
 }
 
 .main {
