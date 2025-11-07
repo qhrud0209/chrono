@@ -2,11 +2,11 @@ import path from "path";
 import fs from "fs/promises";
 import { similarity, normalize } from "./similarity";
 
-export type WordEntry = string | { term: string; freq?: number };
+export type WordEntry = string | { term: string; freq?: number; id?: number };
 
 let cache: { words: { term: string; freq: number }[] } | null = null;
 
-async function readWordsFromFile(): Promise<{ term: string; freq: number }[]> {
+async function readWordsFromFile(): Promise<{ term: string; freq: number; id?: number }[]> {
   const tryFiles = [
     process.env.WORDS_FILE,
     path.join(process.cwd(), "data", "words.txt"),
@@ -29,7 +29,7 @@ async function readWordsFromFile(): Promise<{ term: string; freq: number }[]> {
           .map((w) =>
             typeof w === "string"
               ? { term: w, freq: 0 }
-              : { term: w.term, freq: w.freq ?? 0 }
+              : { term: w.term, freq: w.freq ?? 0, id: w.id }
           )
           .filter((x) => x.term && typeof x.term === "string");
         if (items.length) return items;
@@ -41,7 +41,7 @@ async function readWordsFromFile(): Promise<{ term: string; freq: number }[]> {
   return [];
 }
 
-export async function loadWordList(): Promise<{ term: string; freq: number }[]> {
+export async function loadWordList(): Promise<{ term: string; freq: number; id?: number }[]> {
   if (cache) return cache.words;
   const words = await readWordsFromFile();
   cache = { words };
@@ -64,4 +64,3 @@ export async function getSimilarWords(q: string, limit = 10): Promise<string[]> 
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, limit).map((x) => x.term);
 }
-

@@ -1,7 +1,5 @@
-﻿'use client';
+'use client';
 import styles from './page.module.css';
-
-
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
@@ -29,11 +27,11 @@ export default function Home() {
 
     // Special-case suggestions for queries including "apec"
     if (query.toLowerCase().includes('apec')) {
-      setSuggestions(['apec', '寃쎌＜', '?몃읆??]);
+      setSuggestions(['apec', '경주', '트럼프']);
       return;
     }
 
-    // ?댁쟾 ?붿껌 痍⑥냼 ????而⑦듃濡ㅻ윭 ?앹꽦
+    // 이전 요청 취소 후 새 컨트롤러 생성
     const controller = new AbortController();
     abortRef.current?.abort();
     abortRef.current = controller;
@@ -47,7 +45,7 @@ export default function Home() {
         const json = (await res.json()) as { related?: string[] };
         setSuggestions(json.related ?? []);
       } catch (err: any) {
-        // ?ъ슜?먭? ?낅젰??諛붽씀硫댁꽌 abort ??寃쎌슦??臾댁떆
+        // 사용자가 입력을 바꾸면서 abort 된 경우는 무시
         if (err?.name !== 'AbortError') {
           setSuggestions([]);
         }
@@ -66,43 +64,45 @@ export default function Home() {
 
   return (
     <div>
-      <section className={styles.mainHero}>
-        <h1 className={styles.logo} aria-label="chrono">
+      <section className="main-hero">
+        <h1 className="logo" aria-label="chrono">
           chrono
         </h1>
 
         <form
-          className={styles.searchForm}
+          className="search-form"
           action="/keyword"
           method="get"
           role="search"
           onSubmit={onSubmit}
         >
-          <label htmlFor="q" className={styles.srOnly}>
-            寃?됱뼱 ?낅젰
+          <label htmlFor="q" className="sr-only">
+            검색어 입력
           </label>
           <input
             id="q"
             name="q"
             type="search"
             placeholder="검색어를 입력하세요..."
-            className={styles.searchInput}
+            className="search-input"
             autoComplete="off"
             value={q}
             onChange={(e) => setQ(e.target.value)}
           />
-          <button type="submit" className={styles.searchButton}>검색</button>
+          <button type="submit" className="search-button">
+            검색
+          </button>
         </form>
 
         {suggestions.length > 0 && (
-          <div className={styles.suggestions} role="listbox" aria-label="유사 검색어">
+          <div className="suggestions" role="listbox" aria-label="유사 검색어">
             {suggestions.map((s) => (
               <button
                 key={s}
                 type="button"
-                className={styles.suggestionItem}
+                className="suggestion-item"
                 onMouseDown={(e) => {
-                  e.preventDefault(); // blur濡??명븳 dropdown ?ロ옒 諛⑹?
+                  e.preventDefault(); // blur로 인한 dropdown 닫힘 방지
                   choose(s);
                 }}
               >
@@ -115,5 +115,4 @@ export default function Home() {
     </div>
   );
 }
-
-
+//hi
