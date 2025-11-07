@@ -3,12 +3,10 @@ import * as d3 from 'd3';
 
 import styles from './TopicGraph.module.css';
 import {
-  CENTRAL_TOPIC_ID,
   FilteredGraph,
   JITTER_STRENGTH,
   LinkDatum,
   NodeDatum,
-  radiusByDepth,
 } from './topicGraphData';
 
 type TopicGraphCanvasProps = {
@@ -42,7 +40,13 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
 
     const linkSelection = linkLayer
       .selectAll('line')
-      .data(graph.links)
+      .data(graph.links, (link) => {
+        const sourceId =
+          typeof link.source === 'string' ? link.source : link.source.id;
+        const targetId =
+          typeof link.target === 'string' ? link.target : link.target.id;
+        return `${sourceId}-${targetId}`;
+      })
       .join('line')
       .attr('stroke-width', (link) => link.width)
       .attr('stroke', (link) => link.color)
@@ -50,8 +54,8 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
       .attr('stroke-opacity', 0.8);
 
     const nodeSelection = nodeLayer
-      .selectAll('g')
-      .data(graph.nodes)
+      .selectAll<SVGGElement, NodeDatum>('g')
+      .data(graph.nodes, (node) => node.id)
       .join('g')
       .attr('class', styles.nodeGroup);
 
@@ -59,11 +63,9 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
       .append('circle')
       .attr('r', (node) => node.radius)
       .attr('fill', (node) => node.color)
-      .attr('stroke', (node) =>
-        node.id === CENTRAL_TOPIC_ID ? '#2235da' : '#39426f'
-      )
-      .attr('stroke-width', (node) => (node.id === CENTRAL_TOPIC_ID ? 3.4 : 1.4))
-      .attr('fill-opacity', (node) => (node.id === CENTRAL_TOPIC_ID ? 0.94 : 0.86))
+      .attr('stroke', (node) => (node.isCentral ? '#2235da' : '#39426f'))
+      .attr('stroke-width', (node) => (node.isCentral ? 3.4 : 1.4))
+      .attr('fill-opacity', (node) => (node.isCentral ? 0.94 : 0.86))
       .attr('stroke-opacity', 0.9);
 
     nodeSelection
@@ -71,7 +73,7 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
       .attr('class', styles.nodeLabel)
       .attr('dominant-baseline', 'middle')
       .attr('text-anchor', 'middle')
-      .text((node) => node.label);
+      .text((node) => node.label ?? '');
 
     const updatePositions = () => {
       nodeSelection.attr('transform', (node) => {
@@ -94,20 +96,32 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
         d3
           .forceLink<NodeDatum, LinkDatum>(graph.links)
           .id((node) => node.id)
-          .distance((link) => Math.max(80, 170 - link.weight * 65))
-          .strength(0.25)
+          .distance((link) =>
+            Math.max(120, (link.target.targetRadius ?? 200) * 0.85)
+          )
+          .strength(0.22)
       )
-      .force('charge', d3.forceManyBody<NodeDatum>().strength(-100).theta(0.85))
+      .force(
+        'charge',
+        d3
+          .forceManyBody<NodeDatum>()
+          .strength((node) => (node.isCentral ? -320 : -160))
+          .theta(0.9)
+      )
       .force(
         'collision',
-        d3.forceCollide<NodeDatum>((node) => node.radius + 10).iterations(2)
+        d3
+          .forceCollide<NodeDatum>((node) => node.radius + (node.isCentral ? 16 : 10))
+          .iterations(2)
       )
       .force('center', d3.forceCenter<NodeDatum>(0, 0))
       .force(
         'radial',
         d3
-          .forceRadial<NodeDatum>((node) => radiusByDepth(node.depth))
-          .strength(0.12)
+          .forceRadial<NodeDatum>((node) =>
+            node.isCentral ? 0 : node.targetRadius
+          )
+          .strength(0.16)
       )
       .force('x', d3.forceX<NodeDatum>().strength(0.0025))
       .force('y', d3.forceY<NodeDatum>().strength(0.0025))
@@ -117,7 +131,7 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
       .on('tick', () => {
         graph.nodes.forEach((node) => {
           if (
-            node.id !== CENTRAL_TOPIC_ID &&
+            !node.isCentral &&
             node.fx == null &&
             node.fy == null
           ) {
@@ -152,7 +166,7 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
           simulation.alphaTarget(0.3);
         }
 
-        if (node.id === CENTRAL_TOPIC_ID) {
+        if (node.isCentral) {
           node.fx = 0;
           node.fy = 0;
           node.x = 0;
@@ -168,12 +182,6 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
         selection: d3.Selection<SVGGElement, NodeDatum, SVGGElement, unknown>
       ) => void
     );
-
-    nodeSelection.on('click', (_, node) => {
-      if (node.url) {
-        window.open(node.url, '_blank', 'noopener,noreferrer');
-      }
-    });
 
     nodeSelection
       .on('mouseenter', function (_, node) {

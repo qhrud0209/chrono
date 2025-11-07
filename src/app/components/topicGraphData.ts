@@ -1,27 +1,28 @@
 import * as d3 from 'd3';
 
-export type Topic = {
+export type RelatedKeyword = {
+  keywordName?: string | null;
+  keywordId?: number | string | null;
+  relatedness?: number | null;
+};
+
+export type BaseNode = {
   id: string;
   label: string;
-  url: string;
-  influence: number;
-};
-
-export type Link = {
-  source: string;
-  target: string;
-  weight: number;
-};
-
-export type BaseNode = Topic & {
+  isCentral: boolean;
+  relatedness?: number;
   radius: number;
   color: string;
   initialX: number;
   initialY: number;
   depth: number;
+  targetRadius: number;
 };
 
-export type BaseLink = Link & {
+export type BaseLink = {
+  source: string;
+  target: string;
+  weight: number;
   width: number;
   color: string;
 };
@@ -32,24 +33,35 @@ export type NodeDatum = d3.SimulationNodeDatum &
     fy?: number;
   };
 
-export type LinkDatum = d3.SimulationLinkDatum<NodeDatum> & BaseLink;
+export type LinkDatum = d3.SimulationLinkDatum<NodeDatum> &
+  Omit<BaseLink, 'source' | 'target'> & {
+    source: NodeDatum;
+    target: NodeDatum;
+  };
 
-export type BaseGraph = {
+export type GraphTemplate = {
+  centerId: string;
+  centerLabel: string;
   nodes: BaseNode[];
   links: BaseLink[];
-  distances: Map<string, number>;
   adjacency: Map<string, Set<string>>;
-  maxDepth: number;
+  orderedRelated: Array<{
+    id: string;
+    label: string;
+    relatedness: number;
+  }>;
 };
 
 export type FilteredGraph = {
+  centerId: string;
   nodes: NodeDatum[];
   links: LinkDatum[];
   adjacency: Map<string, Set<string>>;
 };
 
-export const CENTRAL_TOPIC_ID = 'us-election';
 export const JITTER_STRENGTH = 0.032;
+
+const clampRelatedness = (value: number) => Math.max(-1, Math.min(1, value));
 
 const toHsl = (hex: string) => {
   try {
@@ -78,295 +90,209 @@ const lighten = (hex: string, amount: number) => {
   return color.formatHex();
 };
 
-export const radiusByDepth = (depth: number) => {
-  if (depth <= 0) {
-    return 0;
+const makeNodeColor = (relatedness: number, isCentral: boolean) => {
+  if (isCentral) {
+    return '#445bff';
   }
-  return 140 + depth * 80;
+
+  const normalized = (relatedness + 1) / 2;
+  const paletteBase = d3.interpolateCubehelixLong('#223366', '#c4d5ff')(
+    normalized
+  );
+  const saturated = saturate(paletteBase, 1.12);
+  return lighten(saturated, normalized * 0.12);
 };
 
-const TOPICS: Topic[] = [
-  {
-    id: 'us-election',
-    label: '미국 대선',
-    url: 'https://www.nytimes.com/section/us/politics',
-    influence: 6,
-  },
-  {
-    id: 'domestic-strategy',
-    label: '국내 정치 구도',
-    url: 'https://www.washingtonpost.com/politics/',
-    influence: 5,
-  },
-  {
-    id: 'swing-states',
-    label: '스윙 스테이트 전략',
-    url: 'https://www.nbcnews.com/politics',
-    influence: 4,
-  },
-  {
-    id: 'policy-messaging',
-    label: '정책 메시지',
-    url: 'https://www.cnn.com/politics',
-    influence: 3,
-  },
-  {
-    id: 'voter-blocs',
-    label: '유권자 연합',
-    url: 'https://fivethirtyeight.com',
-    influence: 3,
-  },
-  {
-    id: 'geopolitics',
-    label: '대외 정책',
-    url: 'https://www.reuters.com/world/us/',
-    influence: 5,
-  },
-  {
-    id: 'ukraine-war',
-    label: '우크라이나 전쟁',
-    url: 'https://www.reuters.com/world/europe/',
-    influence: 4,
-  },
-  {
-    id: 'indo-pacific',
-    label: '인도·태평양 전략',
-    url: 'https://www.scmp.com/',
-    influence: 4,
-  },
-  {
-    id: 'alliance-strategy',
-    label: '동맹 관리',
-    url: 'https://www.nato.int',
-    influence: 3,
-  },
-  {
-    id: 'taiwan-strait',
-    label: '대만 해협',
-    url: 'https://www.scmp.com/topics/taiwan-strait',
-    influence: 3,
-  },
-  {
-    id: 'south-china-sea',
-    label: '남중국해',
-    url: 'https://www.scmp.com/topics/south-china-sea',
-    influence: 2,
-  },
-  {
-    id: 'economic-agenda',
-    label: '경제 아젠다',
-    url: 'https://www.wsj.com/news/economy',
-    influence: 5,
-  },
-  {
-    id: 'inflation',
-    label: '물가와 생활비',
-    url: 'https://www.economist.com/finance-and-economics',
-    influence: 4,
-  },
-  {
-    id: 'jobs-plan',
-    label: '일자리 전략',
-    url: 'https://www.ft.com/us-economy',
-    influence: 3,
-  },
-  {
-    id: 'fiscal-policy',
-    label: '재정 정책',
-    url: 'https://www.bloomberg.com/politics',
-    influence: 3,
-  },
-  {
-    id: 'energy-prices',
-    label: '에너지 가격',
-    url: 'https://www.bloomberg.com/energy',
-    influence: 2,
-  },
-  {
-    id: 'technology-strategy',
-    label: '기술 경쟁',
-    url: 'https://www.ft.com/technology',
-    influence: 4,
-  },
-  {
-    id: 'chip-act',
-    label: '반도체 육성',
-    url: 'https://www.semianalysis.com',
-    influence: 3,
-  },
-  {
-    id: 'ai-governance',
-    label: 'AI 규범',
-    url: 'https://www.technologyreview.com/',
-    influence: 3,
-  },
-  {
-    id: 'cyber-security',
-    label: '사이버 보안',
-    url: 'https://www.cyberscoop.com/',
-    influence: 2,
-  },
-  {
-    id: 'climate-agenda',
-    label: '기후·에너지',
-    url: 'https://www.nytimes.com/section/climate',
-    influence: 4,
-  },
-  {
-    id: 'energy-transition',
-    label: '에너지 전환',
-    url: 'https://www.iea.org',
-    influence: 3,
-  },
-  {
-    id: 'climate-diplomacy',
-    label: '기후 외교',
-    url: 'https://www.un.org/climatechange',
-    influence: 2,
-  },
-];
+const computeTargetRadius = (relatedness: number, baseRadius: number) => {
+  const normalized = (relatedness + 1) / 2;
+  const contraction = 1 - normalized * 0.45;
+  return baseRadius * contraction;
+};
 
-const LINKS: Link[] = [
-  { source: 'us-election', target: 'domestic-strategy', weight: 0.85 },
-  { source: 'domestic-strategy', target: 'swing-states', weight: 0.75 },
-  { source: 'domestic-strategy', target: 'policy-messaging', weight: 0.7 },
-  { source: 'domestic-strategy', target: 'voter-blocs', weight: 0.68 },
-  { source: 'us-election', target: 'geopolitics', weight: 0.82 },
-  { source: 'geopolitics', target: 'ukraine-war', weight: 0.72 },
-  { source: 'geopolitics', target: 'indo-pacific', weight: 0.7 },
-  { source: 'geopolitics', target: 'alliance-strategy', weight: 0.66 },
-  { source: 'indo-pacific', target: 'taiwan-strait', weight: 0.62 },
-  { source: 'indo-pacific', target: 'south-china-sea', weight: 0.6 },
-  { source: 'us-election', target: 'economic-agenda', weight: 0.8 },
-  { source: 'economic-agenda', target: 'inflation', weight: 0.74 },
-  { source: 'economic-agenda', target: 'jobs-plan', weight: 0.7 },
-  { source: 'economic-agenda', target: 'fiscal-policy', weight: 0.65 },
-  { source: 'inflation', target: 'energy-prices', weight: 0.6 },
-  { source: 'us-election', target: 'technology-strategy', weight: 0.78 },
-  { source: 'technology-strategy', target: 'chip-act', weight: 0.7 },
-  { source: 'technology-strategy', target: 'ai-governance', weight: 0.68 },
-  { source: 'technology-strategy', target: 'cyber-security', weight: 0.64 },
-  { source: 'us-election', target: 'climate-agenda', weight: 0.76 },
-  { source: 'climate-agenda', target: 'energy-transition', weight: 0.68 },
-  { source: 'climate-agenda', target: 'climate-diplomacy', weight: 0.64 },
-];
+const randomAngle = (index: number, total: number) => {
+  if (total <= 0) {
+    return 0;
+  }
+  return (index / total) * Math.PI * 2;
+};
 
-export const buildBaseGraph = (): BaseGraph => {
-  const radiusScale = d3.scaleLinear().domain([2, 6]).range([40, 70]);
+const sanitizeLabel = (value?: string | null) => {
+  if (value == null) {
+    return undefined;
+  }
+  const trimmed = value.trim();
+  if (
+    !trimmed ||
+    trimmed.toLowerCase() === 'undefined' ||
+    trimmed.toLowerCase() === 'null'
+  ) {
+    return undefined;
+  }
+  return trimmed;
+};
 
-  const nodes: BaseNode[] = TOPICS.map((topic) => ({
-    ...topic,
-    radius: radiusScale(topic.influence),
-    color: '#0b1730',
+const normalizeRelatedness = (value?: number | null) => {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 0;
+  }
+  return clampRelatedness(value);
+};
+
+export const buildGraphTemplate = (
+  center: { id: string; label: string },
+  related: RelatedKeyword[],
+  options?: { baseRadialDistance?: number }
+): GraphTemplate => {
+  const fallbackLabel =
+    sanitizeLabel(center.label) ??
+    sanitizeLabel(center.id) ??
+    center.label ??
+    '중심 키워드';
+  const centerId = sanitizeLabel(center.id) ?? center.id ?? 'center';
+
+  const cleaned = (related ?? [])
+    .map((item, index) => {
+      const safeLabel =
+        sanitizeLabel(item.keywordName) ?? `관련 키워드 ${index + 1}`;
+      const safeId =
+        item.keywordId != null
+          ? String(item.keywordId)
+          : `${centerId}-${index + 1}`;
+      return {
+        keywordName: safeLabel,
+        keywordId: safeId,
+        relatedness: normalizeRelatedness(item.relatedness),
+      };
+    })
+    .sort((a, b) => b.relatedness - a.relatedness);
+
+  const baseRadialDistance = options?.baseRadialDistance ?? 280;
+
+  const relatednessValues = cleaned.map((item) => item.relatedness);
+  const minRelatedness =
+    relatednessValues.length > 0
+      ? Math.min(...relatednessValues)
+      : 0;
+  const maxRelatedness =
+    relatednessValues.length > 0
+      ? Math.max(...relatednessValues)
+      : 0;
+
+  const radiusScale = d3
+    .scaleLinear()
+    .domain(
+      minRelatedness === maxRelatedness
+        ? [minRelatedness - 0.01, maxRelatedness + 0.01]
+        : [minRelatedness, maxRelatedness]
+    )
+    .range([28, 64]);
+
+  const centerNode: BaseNode = {
+    id: centerId,
+    label: fallbackLabel,
+    isCentral: true,
+    radius: 72,
+    color: makeNodeColor(1, true),
     initialX: 0,
     initialY: 0,
     depth: 0,
-  }));
+    targetRadius: 0,
+  };
 
-  const links: BaseLink[] = LINKS.map((link) => ({
-    ...link,
-    width: 1.1 + link.weight * 1.6,
-    color: 'rgba(118, 146, 210, 0.28)',
+  const relatedNodes: BaseNode[] = cleaned.map((item, index) => {
+    const nodeRadius = radiusScale(item.relatedness);
+    const targetRadius = computeTargetRadius(
+      item.relatedness,
+      baseRadialDistance
+    );
+    const angle = randomAngle(index, cleaned.length);
+    return {
+      id: String(item.keywordId),
+      label: item.keywordName ?? `관련 키워드 ${index + 1}`,
+      isCentral: false,
+      relatedness: item.relatedness,
+      radius: Math.max(22, nodeRadius),
+      color: makeNodeColor(item.relatedness, false),
+      initialX: Math.cos(angle) * targetRadius,
+      initialY: Math.sin(angle) * targetRadius,
+      depth: 1,
+      targetRadius,
+    };
+  });
+
+  const links: BaseLink[] = relatedNodes.map((node) => ({
+    source: centerNode.id,
+    target: node.id,
+    weight: node.relatedness ?? 0,
+    width: 1.4 + Math.abs(node.relatedness ?? 0) * 1.8,
+    color: 'rgba(91, 126, 215, 0.32)',
   }));
 
   const adjacency = new Map<string, Set<string>>();
-  nodes.forEach((node) => adjacency.set(node.id, new Set()));
+  [centerNode, ...relatedNodes].forEach((node) =>
+    adjacency.set(node.id, new Set())
+  );
   links.forEach((link) => {
     adjacency.get(link.source)?.add(link.target);
     adjacency.get(link.target)?.add(link.source);
   });
 
-  const distances = new Map<string, number>();
-  const queue: string[] = [CENTRAL_TOPIC_ID];
-  distances.set(CENTRAL_TOPIC_ID, 0);
-
-  while (queue.length) {
-    const current = queue.shift()!;
-    const depth = distances.get(current) ?? 0;
-    adjacency.get(current)?.forEach((neighbor) => {
-      if (!distances.has(neighbor)) {
-        distances.set(neighbor, depth + 1);
-        queue.push(neighbor);
-      }
-    });
-  }
-
-  const maxDepth = Math.max(...Array.from(distances.values()));
-  const colorScale = d3
-    .scaleSequential(d3.interpolateCubehelixLong('#1f2f70', '#d5e0ff'))
-    .domain([0, Math.max(2, maxDepth + 2)]);
-
-  nodes.forEach((node) => {
-    const depth =
-      node.id === CENTRAL_TOPIC_ID ? 0 : distances.get(node.id) ?? maxDepth;
-    node.depth = depth;
-    const normalized = depth + 0.6;
-    const paletteBase = depth === 0 ? '#445bff' : colorScale(normalized);
-    const saturated = saturate(paletteBase, depth === 0 ? 1.15 : 1.08);
-    const lightnessBoost = Math.min(depth, maxDepth) * 0.055;
-    node.color = lighten(saturated, lightnessBoost);
-    const depthFactor = Math.max(0.64, 1 - Math.min(depth, 5) * 0.09);
-    const baseRadius = radiusScale(node.influence) * depthFactor;
-    node.radius =
-      node.id === CENTRAL_TOPIC_ID
-        ? Math.max(58, baseRadius * 1.2)
-        : Math.max(26, baseRadius);
-  });
-
-  const depthBuckets = new Map<number, BaseNode[]>();
-  nodes.forEach((node) => {
-    const depth = node.depth;
-    if (!depthBuckets.has(depth)) {
-      depthBuckets.set(depth, []);
-    }
-    depthBuckets.get(depth)!.push(node);
-  });
-
-  depthBuckets.forEach((bucket, depth) => {
-    if (depth === 0) {
-      bucket.forEach((node) => {
-        node.initialX = 0;
-        node.initialY = 0;
-      });
-      return;
-    }
-
-    const radius = radiusByDepth(depth);
-    bucket.forEach((node, index) => {
-      const angle = (index / bucket.length) * Math.PI * 2;
-      node.initialX = Math.cos(angle) * radius;
-      node.initialY = Math.sin(angle) * radius;
-    });
-  });
-
-  return { nodes, links, adjacency, distances, maxDepth };
+  return {
+    centerId: centerNode.id,
+    centerLabel: centerNode.label,
+    nodes: [centerNode, ...relatedNodes],
+    links,
+    adjacency,
+    orderedRelated: relatedNodes.map((node) => ({
+      id: node.id,
+      label: node.label,
+      relatedness: node.relatedness ?? 0,
+    })),
+  };
 };
 
 export const deriveGraph = (
-  base: BaseGraph,
-  maxDepth: number
+  template: GraphTemplate,
+  visibleCount: number
 ): FilteredGraph => {
+  const clampedCount = Math.max(
+    0,
+    Math.min(visibleCount, template.orderedRelated.length)
+  );
+
   const allowedIds = new Set<string>();
-  base.distances.forEach((depth, nodeId) => {
-    if (depth <= maxDepth) {
-      allowedIds.add(nodeId);
-    }
+  allowedIds.add(template.centerId);
+  template.orderedRelated.slice(0, clampedCount).forEach((item) => {
+    allowedIds.add(item.id);
   });
 
-  const nodes: NodeDatum[] = base.nodes
+  const nodes: NodeDatum[] = template.nodes
     .filter((node) => allowedIds.has(node.id))
     .map((node) => ({
       ...node,
-      x: node.initialX + (Math.random() - 0.5) * 26,
-      y: node.initialY + (Math.random() - 0.5) * 26,
-      fx: node.id === CENTRAL_TOPIC_ID ? 0 : undefined,
-      fy: node.id === CENTRAL_TOPIC_ID ? 0 : undefined,
+      x: node.initialX,
+      y: node.initialY,
+      fx: node.isCentral ? 0 : undefined,
+      fy: node.isCentral ? 0 : undefined,
     }));
+
+  const peripheral = nodes.filter((node) => !node.isCentral);
+  peripheral.forEach((node, index) => {
+    const angle = peripheral.length
+      ? (index / peripheral.length) * Math.PI * 2
+      : 0;
+    const baseX = Math.cos(angle) * node.targetRadius;
+    const baseY = Math.sin(angle) * node.targetRadius;
+    node.initialX = baseX;
+    node.initialY = baseY;
+    node.x = baseX + (Math.random() - 0.5) * 18;
+    node.y = baseY + (Math.random() - 0.5) * 18;
+  });
 
   const nodeMap = new Map<string, NodeDatum>();
   nodes.forEach((node) => nodeMap.set(node.id, node));
 
-  const links: LinkDatum[] = base.links
+  const links: LinkDatum[] = template.links
     .filter(
       (link) => allowedIds.has(link.source) && allowedIds.has(link.target)
     )
@@ -383,5 +309,10 @@ export const deriveGraph = (
     adjacency.get(link.target.id)?.add(link.source.id);
   });
 
-  return { nodes, links, adjacency };
+  return {
+    centerId: template.centerId,
+    nodes,
+    links,
+    adjacency,
+  };
 };
