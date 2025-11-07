@@ -13,7 +13,7 @@ export default function Page() {
     e.preventDefault();
     const query = q.trim();
     if (query) {
-      router.push(`/keyword?q=${encodeURIComponent(query)}`);
+      router.push(`/keyword/${encodeURIComponent(query)}`);
     }
   };
 
@@ -43,9 +43,11 @@ export default function Page() {
         if (!res.ok) throw new Error('failed');
         const json = (await res.json()) as { related?: string[] };
         setSuggestions(json.related ?? []);
-      } catch (err: any) {
+      } catch (err) {
         // 사용자가 입력을 바꾸면서 abort 된 경우는 무시
-        if (err?.name !== 'AbortError') {
+        const isAbortError =
+          err instanceof DOMException && err.name === 'AbortError';
+        if (!isAbortError) {
           setSuggestions([]);
         }
       }
@@ -58,7 +60,7 @@ export default function Page() {
   }, [q]);
 
   const choose = (term: string) => {
-    router.push(`/keyword?q=${encodeURIComponent(term)}`);
+    router.push(`/keyword/${encodeURIComponent(term)}`);
   };
 
   return (

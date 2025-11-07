@@ -12,8 +12,7 @@ export async function GET(req: Request) {
   try {
     const related = await getSimilarWords(q, 8);
     return NextResponse.json({ related });
-  } catch (e) {
+  } catch {
     return NextResponse.json({ related: [] }, { status: 200 });
   }
 }
-
