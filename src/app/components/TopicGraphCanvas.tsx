@@ -11,9 +11,14 @@ import {
 
 type TopicGraphCanvasProps = {
   graph: FilteredGraph;
+  onNodeContextMenu?: (info: {
+    node: NodeDatum;
+    x: number;
+    y: number;
+  }) => void;
 };
 
-const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
+const TopicGraphCanvas = ({ graph, onNodeContextMenu }: TopicGraphCanvasProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -75,10 +80,15 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
       .attr('text-anchor', 'middle')
       .text((node) => node.label ?? '');
 
+    const toContainerCoords = (node: NodeDatum) => {
+      const x = (node.x ?? 0) + centerX;
+      const y = (node.y ?? 0) + centerY;
+      return { x, y };
+    };
+
     const updatePositions = () => {
       nodeSelection.attr('transform', (node) => {
-        const x = (node.x ?? 0) + centerX;
-        const y = (node.y ?? 0) + centerY;
+        const { x, y } = toContainerCoords(node);
         return `translate(${x}, ${y})`;
       });
 
@@ -204,6 +214,14 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
         d3.select(this).classed(styles.nodeActive, false);
         nodeSelection.classed(styles.dimmed, false);
         linkSelection.classed(styles.linkActive, false);
+      })
+      .on('contextmenu', function (event, node) {
+        event.preventDefault();
+        if (!onNodeContextMenu) {
+          return;
+        }
+        const coords = toContainerCoords(node);
+        onNodeContextMenu({ node, x: coords.x, y: coords.y });
       });
 
     const resizeObserver = new ResizeObserver((entries) => {
@@ -228,7 +246,7 @@ const TopicGraphCanvas = ({ graph }: TopicGraphCanvasProps) => {
       resizeObserver.disconnect();
       svg.remove();
     };
-  }, [graph]);
+  }, [graph, onNodeContextMenu]);
 
   return <div ref={containerRef} className={styles.canvas} />;
 };
