@@ -109,6 +109,20 @@
   box-shadow: 0 16px 36px rgba(22, 46, 98, 0.3);
 }
 
+.navigateHintChronology {
+  padding: 10px 14px;
+  gap: 6px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), #e8efff);
+  color: #112049;
+  border-color: rgba(41, 78, 255, 0.35);
+}
+
+.navigateHintChronology:hover {
+  background: linear-gradient(135deg, #ffffff, #dbe6ff);
+  color: #0b1636;
+  box-shadow: 0 16px 32px rgba(17, 36, 92, 0.28);
+}
+
 .navigateHintLabel {
   font-weight: 600;
   font-size: 13px;
@@ -119,4 +133,9 @@
   font-weight: 600;
   opacity: 0.9;
   color: #3a54ff;
+}
+
+.navigateHintChronology .navigateHintAction {
+  color: #2e46ff;
+  font-size: 11px;
 }
