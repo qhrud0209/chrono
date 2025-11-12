@@ -8,7 +8,7 @@ export default function Page() {
 
   useEffect(() => {
     if (!keyword_id) return;
-    fetch(`/api/events/${keyword_id}`)
+    fetch(`/testapi/events/${keyword_id}`)
       .then(r => r.json())
       .then(d => setEvents(Array.isArray(d) ? d : d.content ?? []))
       .catch(console.error);
