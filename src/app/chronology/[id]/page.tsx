@@ -24,7 +24,7 @@ export default async function Page({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const timeline = buildTimelineForKeyword(id);
+  const timeline = await buildTimelineForKeyword(id);
 
   return (
     <div
