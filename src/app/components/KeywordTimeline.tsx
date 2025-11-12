@@ -1,3 +1,7 @@
+'use client';
+
+import { useState } from 'react';
+import type { KeyboardEvent, MouseEvent } from 'react';
 import styles from './KeywordTimeline.module.css';
 import { KeywordTimeline } from '@/app/chronology/timelineData';
 
@@ -24,6 +28,53 @@ const formatArticleDate = (value: string) => {
 };
 
 const KeywordTimelineView = ({ timeline }: KeywordTimelineProps) => {
+  const [pinnedMap, setPinnedMap] = useState<Record<string, boolean>>({});
+  const [hoverSuppressedMap, setHoverSuppressedMap] = useState<
+    Record<string, boolean>
+  >({});
+
+  const setPinnedState = (eventId: string, shouldPin: boolean) => {
+    setPinnedMap(prev => {
+      const isAlreadyPinned = Boolean(prev[eventId]);
+      if (shouldPin === isAlreadyPinned) {
+        return prev;
+      }
+      const next = { ...prev };
+      if (shouldPin) {
+        next[eventId] = true;
+      } else {
+        delete next[eventId];
+      }
+      return next;
+    });
+
+    if (shouldPin) {
+      setHoverSuppressedMap(prev => {
+        if (!prev[eventId]) {
+          return prev;
+        }
+        const next = { ...prev };
+        delete next[eventId];
+        return next;
+      });
+    }
+  };
+
+  const setHoverSuppressed = (eventId: string, shouldSuppress: boolean) => {
+    setHoverSuppressedMap(prev => {
+      const isSuppressed = Boolean(prev[eventId]);
+      if (shouldSuppress === isSuppressed) {
+        return prev;
+      }
+      if (shouldSuppress) {
+        return { ...prev, [eventId]: true };
+      }
+      const next = { ...prev };
+      delete next[eventId];
+      return next;
+    });
+  };
+
   return (
     <section
       className={styles.timelineSection}
@@ -34,7 +85,7 @@ const KeywordTimelineView = ({ timeline }: KeywordTimelineProps) => {
           {timeline.events.map((event) => {
             const eventTitle =
               event.title.trim() || '이벤트 상세 정보가 제공되지 않았습니다';
-            const summaryText = event.summary.trim();
+            const summaryText = (event.summary ?? '').trim();
             const hasSummary = summaryText.length > 0;
 
             const tagSlug = event.tag?.trim();
@@ -42,12 +93,61 @@ const KeywordTimelineView = ({ timeline }: KeywordTimelineProps) => {
             const tagClassName =
               tagSlug && styles[tagSlug] ? `${styles[tagSlug]}` : '';
 
+            const isPinned = Boolean(pinnedMap[event.id]);
+            const isHoverSuppressed = Boolean(
+              hoverSuppressedMap[event.id],
+            );
+            const cardClassName = [
+              styles.card,
+              isPinned ? styles.cardPinned : '',
+              isHoverSuppressed ? styles.cardHoverSuppressed : '',
+            ]
+              .filter(Boolean)
+              .join(' ');
+
+            const handleCardClick = (evt: MouseEvent<HTMLElement>) => {
+              const target = evt.target as HTMLElement | null;
+              if (target?.closest('a')) {
+                return;
+              }
+              const willPin = !isPinned;
+              setPinnedState(event.id, willPin);
+              if (!willPin) {
+                setHoverSuppressed(event.id, true);
+                evt.currentTarget.blur();
+              }
+            };
+
+            const handleCardKeyDown = (evt: KeyboardEvent<HTMLElement>) => {
+              if (evt.key === 'Enter' || evt.key === ' ') {
+                evt.preventDefault();
+                const willPin = !isPinned;
+                setPinnedState(event.id, willPin);
+                if (!willPin) {
+                  setHoverSuppressed(event.id, true);
+                  evt.currentTarget.blur();
+                }
+              }
+            };
+
+            const handleMouseLeave = () => {
+              if (hoverSuppressedMap[event.id]) {
+                setHoverSuppressed(event.id, false);
+              }
+            };
+
             return (
               <li key={event.id} className={styles.timelineStop}>
                 <div className={styles.markerRow} aria-hidden="true">
                   <span className={styles.node} />
                 </div>
-                <article className={styles.card} tabIndex={0}>
+                <article
+                  className={cardClassName}
+                  tabIndex={0}
+                  onClick={handleCardClick}
+                  onKeyDown={handleCardKeyDown}
+                  onMouseLeave={handleMouseLeave}
+                >
                   <div className={styles.cardHeader}>
                     <span className={styles.date}>{event.dateLabel}</span>
                     {tagLabel && (
