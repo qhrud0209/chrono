@@ -126,6 +126,14 @@
   padding: 20px 24px;
 }
 
+.cardHoverSuppressed,
+.cardHoverSuppressed:hover {
+  transform: none;
+  box-shadow: 0 10px 24px rgba(26, 37, 80, 0.12);
+  border-color: #e4e8fb;
+  padding: 18px 22px;
+}
+
 .card:focus-visible {
   outline: 3px solid rgba(64, 82, 196, 0.55);
   outline-offset: 4px;
@@ -211,6 +219,23 @@
   max-height: 520px;
   transform: translateY(0);
   pointer-events: auto;
+}
+
+.cardPinned .details {
+  opacity: 1;
+  max-height: 520px;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.cardHoverSuppressed .details,
+.cardHoverSuppressed:hover .details,
+.cardHoverSuppressed:focus-visible .details,
+.cardHoverSuppressed:focus-within .details {
+  opacity: 0;
+  max-height: 0;
+  transform: translateY(8px);
+  pointer-events: none;
 }
 
 .articleList {

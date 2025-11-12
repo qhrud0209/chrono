@@ -29,6 +29,7 @@ type HintState = {
   x: number;
   y: number;
   centerId: string;
+  action: 'keyword' | 'chronology';
 };
 
 const HINT_OFFSET_X = 28;
@@ -77,25 +78,27 @@ const TopicGraph = ({ center, related }: TopicGraphProps) => {
 
   const handleContextMenu = useCallback(
     (info: { node: NodeDatum; x: number; y: number }) => {
-      if (info.node.isCentral) {
-        setActiveHint(null);
-        return;
-      }
+      const action = info.node.isCentral ? 'chronology' : 'keyword';
       setActiveHint({
         nodeId: info.node.id,
         label: info.node.label ?? '키워드',
         x: info.x,
         y: info.y,
         centerId: center.id,
+        action,
       });
     },
     [center.id],
   );
 
   const handleNavigate = useCallback(
-    (nodeId: string) => {
+    (hint: HintState) => {
       dismissHint();
-      router.push(`/keyword/${encodeURIComponent(nodeId)}`);
+      if (hint.action === 'chronology') {
+        router.push(`/chronology/${encodeURIComponent(hint.nodeId)}`);
+        return;
+      }
+      router.push(`/keyword/${encodeURIComponent(hint.nodeId)}`);
     },
     [dismissHint, router],
   );
@@ -110,6 +113,23 @@ const TopicGraph = ({ center, related }: TopicGraphProps) => {
       }
     : undefined;
 
+  const hintLabel =
+    visibleHint?.action === 'chronology'
+      ? 'WWDC25'
+      : visibleHint?.label;
+
+  const hintActionText =
+    visibleHint?.action === 'chronology'
+      ? '타임라인 열기'
+      : '이 키워드로 이동';
+
+  const hintClassName = [
+    styles.navigateHint,
+    visibleHint?.action === 'chronology' ? styles.navigateHintChronology : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
+
   return (
     <>
       <div className={styles.graphContainer}>
@@ -119,16 +139,16 @@ const TopicGraph = ({ center, related }: TopicGraphProps) => {
         />
         {visibleHint && (
           <button
-            className={styles.navigateHint}
+            className={hintClassName}
             style={hintStyle}
             onClick={(event) => {
               event.stopPropagation();
-              handleNavigate(visibleHint.nodeId);
+              handleNavigate(visibleHint);
             }}
             onContextMenu={(event) => event.preventDefault()}
           >
-            <span className={styles.navigateHintLabel}>{visibleHint.label}</span>
-            <span className={styles.navigateHintAction}>이 키워드로 이동</span>
+            <span className={styles.navigateHintLabel}>{hintLabel}</span>
+            <span className={styles.navigateHintAction}>{hintActionText}</span>
           </button>
         )}
       </div>

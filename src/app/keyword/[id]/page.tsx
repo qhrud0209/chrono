@@ -2,6 +2,7 @@ import { Noto_Sans_KR, Plus_Jakarta_Sans } from 'next/font/google';
 
 import TopicGraph from '@/app/components/TopicGraph';
 import { RelatedKeyword } from '@/app/components/topicGraphData';
+import { buildApiBaseCandidates, buildEndpointUrl } from '@/lib/apiBase';
 import styles from './page.module.css';
 
 type PageProps = {
@@ -26,32 +27,12 @@ type RelatedKeywordsResponse = {
   content?: RelatedKeyword[];
 };
 
-const buildBaseCandidates = () => {
-  const bases = new Set<string>();
-  const candidates = [
-    process.env.NEXT_PUBLIC_API_BASE_URL,
-    process.env.NEXT_PUBLIC_SITE_URL,
-    process.env.SITE_URL,
-    process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : undefined,
-  ];
-  candidates.forEach((candidate) => {
-    if (candidate && candidate.trim().length > 0) {
-      bases.add(candidate);
-    }
-  });
-  bases.add('http://localhost:3000');
-  return Array.from(bases);
-};
-
 const fetchRelatedKeywords = async (keywordId: string) => {
   const endpointPath = `/api/keywords/related/${keywordId}`;
-  const bases = buildBaseCandidates();
+  const bases = buildApiBaseCandidates();
 
   for (const base of bases) {
-    const normalizedBase = base.replace(/\/$/, '');
-    const endpoint = `${normalizedBase}${endpointPath}`;
+    const endpoint = buildEndpointUrl(base, endpointPath);
     try {
       const response = await fetch(endpoint, { cache: 'no-store' });
       if (!response.ok) {
