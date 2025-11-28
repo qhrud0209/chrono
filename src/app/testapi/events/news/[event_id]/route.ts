@@ -1,5 +1,5 @@
 // app/api/events/news/[event_id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import pool from "@/lib/db";
 import type { RowDataPacket } from "mysql2/promise";
 
