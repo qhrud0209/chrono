@@ -1,5 +1,5 @@
 // app/api/events/[keyword_id]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 
 interface EventRow {
@@ -26,7 +26,9 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_KEY;
 
 if (!supabaseUrl) {
-  throw new Error("환경변수 NEXT_PUBLIC_SUPABASE_URL이 설정되어 있지 않습니다.");
+  throw new Error(
+    "환경변수 NEXT_PUBLIC_SUPABASE_URL이 설정되어 있지 않습니다."
+  );
 }
 
 if (!supabaseKey) {
@@ -34,21 +36,6 @@ if (!supabaseKey) {
 }
 
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-// keyword_id 추출
-function getKeywordId(
-  req: Request,
-  context?: { params?: { keyword_id?: string } }
-) {
-  // 1) params 우선
-  const fromParams = context?.params?.keyword_id?.trim();
-  if (fromParams) return fromParams;
-
-  // 2) URL 폴백
-  const { pathname } = new URL(req.url);
-  const last = (pathname.split("/").pop() || "").trim();
-  return last || "";
-}
 
 // "YYYY-MM-DD HH:mm:ss.SSS" 형태로 맞춰주는 헬퍼
 function toMillisString(dt: string | null): string | null {
@@ -65,11 +52,11 @@ function toMillisString(dt: string | null): string | null {
   return iso.replace("T", " ").replace("Z", "").slice(0, 23);
 }
 
-export async function GET(
-  req: Request,
-  context?: { params?: { keyword_id?: string } }
-) {
-  const idRaw = getKeywordId(req, context);
+// ✅ GET 핸들러 (NextRequest + context:any)
+export async function GET(req: NextRequest, _context: any) {
+  // 동적 segment에서 keyword_id 추출
+  const { pathname } = new URL(req.url);
+  const idRaw = (pathname.split("/").pop() || "").trim();
   const idNum = Number(idRaw);
 
   if (!idRaw || Number.isNaN(idNum) || idNum <= 0) {
