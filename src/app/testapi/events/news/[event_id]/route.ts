@@ -13,16 +13,15 @@ interface Row extends RowDataPacket {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-function getEventId(req: Request, context?: { params?: { event_id?: string } }) {
-  const fromParams = context?.params?.event_id?.trim();
-  if (fromParams) return fromParams;
+// ✅ 이제 context 안 쓰고, URL 경로에서만 event_id 추출
+function getEventId(req: NextRequest): string {
   const { pathname } = new URL(req.url);
   const last = (pathname.split("/").pop() || "").trim();
   return last || "";
 }
 
-export async function GET(req: Request, context?: { params?: { event_id?: string } }) {
-  const idRaw = getEventId(req, context);
+export async function GET(req: NextRequest, _context: any) {
+  const idRaw = getEventId(req);
   const idNum = Number(idRaw);
 
   if (!idRaw || Number.isNaN(idNum) || idNum <= 0) {
@@ -44,6 +43,9 @@ export async function GET(req: Request, context?: { params?: { event_id?: string
 
     return NextResponse.json({ content: rows });
   } catch (e: any) {
-    return NextResponse.json({ error: e?.message ?? "db error" }, { status: 500 });
+    return NextResponse.json(
+      { error: e?.message ?? "db error" },
+      { status: 500 }
+    );
   }
 }
