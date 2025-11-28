@@ -45,7 +45,7 @@ const TopicGraphCanvas = ({ graph, onNodeContextMenu }: TopicGraphCanvasProps) =
 
     const linkSelection = linkLayer
       .selectAll('line')
-      .data(graph.links, (link) => {
+      .data(graph.links as any, (link: any) => {
         const sourceId =
           typeof link.source === 'string' ? link.source : link.source.id;
         const targetId =
@@ -53,8 +53,8 @@ const TopicGraphCanvas = ({ graph, onNodeContextMenu }: TopicGraphCanvasProps) =
         return `${sourceId}-${targetId}`;
       })
       .join('line')
-      .attr('stroke-width', (link) => link.width)
-      .attr('stroke', (link) => link.color)
+      .attr('stroke-width', (link :any) => link.width)
+      .attr('stroke', (link :any) => link.color)
       .attr('stroke-linecap', 'round')
       .attr('stroke-opacity', 0.8);
 
@@ -93,10 +93,10 @@ const TopicGraphCanvas = ({ graph, onNodeContextMenu }: TopicGraphCanvasProps) =
       });
 
       linkSelection
-        .attr('x1', (link) => (link.source.x ?? 0) + centerX)
-        .attr('y1', (link) => (link.source.y ?? 0) + centerY)
-        .attr('x2', (link) => (link.target.x ?? 0) + centerX)
-        .attr('y2', (link) => (link.target.y ?? 0) + centerY);
+        .attr('x1', (link: any) => (link.source.x ?? 0) + centerX)
+        .attr('y1', (link: any) => (link.source.y ?? 0) + centerY)
+        .attr('x2', (link: any) => (link.target.x ?? 0) + centerX)
+        .attr('y2', (link: any) => (link.target.y ?? 0) + centerY);
     };
 
     const simulation = d3
@@ -206,7 +206,7 @@ const TopicGraphCanvas = ({ graph, onNodeContextMenu }: TopicGraphCanvasProps) =
         );
         linkSelection.classed(
           styles.linkActive,
-          (link) =>
+          (link: any) =>
             neighborSet.has(link.source.id) && neighborSet.has(link.target.id)
         );
       })
