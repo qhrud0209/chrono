@@ -9,6 +9,7 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.86.0",
     "d3": "^7.9.0",
     "firebase": "^12.5.0",
     "mysql": "^2.18.1",
