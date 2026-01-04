@@ -17,7 +17,6 @@ export const buildApiBaseCandidates = () => {
     }
   });
 
-  bases.add('http://localhost:3000');
   return Array.from(bases);
 };
 
