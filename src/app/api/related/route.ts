@@ -136,7 +136,9 @@ const searchLocally = async (
     throw new Error(`Failed to load keyword embeddings: ${error.message}`);
   }
 
-  const rows = (data || []) as KeywordRow[];
+  const rows = Array.isArray(data)
+    ? (data as unknown as KeywordRow[])
+    : [];
 
   const scored = rows
     .map((row) => {

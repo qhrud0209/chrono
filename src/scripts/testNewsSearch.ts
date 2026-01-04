@@ -83,8 +83,10 @@ async function searchViaRpc(embedding: number[], limit: number): Promise<SearchR
     return null;
   }
 
-  return (data || [])
-    .map((row: RpcRow) => {
+  const rows = Array.isArray(data) ? (data as RpcRow[]) : [];
+
+  return rows
+    .map((row): SearchResult | null => {
       const similarity = parseSimilarity(row);
       const newsId = row.news_id ?? row.id;
       if (!newsId || typeof similarity !== "number") return null;
@@ -96,7 +98,7 @@ async function searchViaRpc(embedding: number[], limit: number): Promise<SearchR
         similarity,
       };
     })
-    .filter((x): x is SearchResult => Boolean(x))
+    .filter((x): x is SearchResult => x !== null)
     .slice(0, limit);
 }
 
@@ -125,7 +127,9 @@ async function searchViaFallback(embedding: number[], limit: number): Promise<Se
     throw new Error(`[fallback select] ${error.message}`);
   }
 
-  const rows = (data || []) as NewsEmbeddingRow[];
+  const rows = Array.isArray(data)
+    ? (data as unknown as NewsEmbeddingRow[])
+    : [];
   const scored = rows
     .map((row) => {
       const embeddingVec = isInlineEmbeddingTable

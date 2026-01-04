@@ -21,22 +21,6 @@ interface ResponseRow {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// ✅ Supabase 클라이언트 (env 기반)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_KEY;
-
-if (!supabaseUrl) {
-  throw new Error(
-    "환경변수 NEXT_PUBLIC_SUPABASE_URL이 설정되어 있지 않습니다."
-  );
-}
-
-if (!supabaseKey) {
-  throw new Error("환경변수 SUPABASE_KEY가 설정되어 있지 않습니다.");
-}
-
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 // "YYYY-MM-DD HH:mm:ss.SSS" 형태로 맞춰주는 헬퍼
 function toMillisString(dt: string | null): string | null {
   if (!dt) return null;
@@ -67,6 +51,18 @@ export async function GET(req: NextRequest, _context: any) {
   }
 
   try {
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const supabaseKey = process.env.SUPABASE_KEY;
+
+    if (!supabaseUrl || !supabaseKey) {
+      return NextResponse.json(
+        { error: "Supabase 환경변수가 설정되어 있지 않습니다." },
+        { status: 500 },
+      );
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
+
     // Supabase에서 event 테이블 조회
     const { data, error } = await supabase
       .from("event")

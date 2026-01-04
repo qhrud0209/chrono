@@ -15,6 +15,12 @@ type KeywordRow = {
   name_embedding?: number[] | null;
 };
 
+type RelatedKeywordRow = {
+  keywordId: number;
+  keywordName: string;
+  relatedness: number;
+};
+
 const KEYWORD_TABLE = process.env.KEYWORD_TABLE?.trim() || 'keyword';
 const MATCH_FUNCTION =
   process.env.SUPABASE_MATCH_KEYWORDS_FUNCTION?.trim() ||
@@ -221,7 +227,9 @@ const searchViaRpc = async (
       if (
         typeof relatedness !== 'number' ||
         keywordId == null ||
-        keywordId === excludeId
+        keywordId === excludeId ||
+        typeof keywordName !== 'string' ||
+        keywordName.trim().length === 0
       ) {
         return null;
       }
@@ -232,7 +240,7 @@ const searchViaRpc = async (
         relatedness,
       };
     })
-    .filter((x): x is RelatedKeyword => Boolean(x));
+    .filter((x): x is RelatedKeywordRow => Boolean(x));
 
   mapped.sort((a, b) => (b.relatedness || 0) - (a.relatedness || 0));
   return mapped.slice(0, limit);
@@ -267,7 +275,7 @@ const searchLocally = async (
         relatedness: cosineSimilarity(embedding, candidateEmbedding),
       };
     })
-    .filter((x): x is RelatedKeyword => Boolean(x));
+    .filter((x): x is RelatedKeywordRow => Boolean(x));
 
   scored.sort((a, b) => (b.relatedness || 0) - (a.relatedness || 0));
   return scored.slice(0, limit);

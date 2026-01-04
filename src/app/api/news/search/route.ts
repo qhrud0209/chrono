@@ -142,7 +142,9 @@ const searchViaLocalSimilarity = async (
     throw new Error(`Failed to fetch embeddings: ${error.message}`);
   }
 
-  const rows = (data || []) as NewsEmbeddingRow[];
+  const rows = Array.isArray(data)
+    ? (data as unknown as NewsEmbeddingRow[])
+    : [];
 
   const scored = rows
     .map((row) => {

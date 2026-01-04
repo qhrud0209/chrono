@@ -55,7 +55,9 @@ async function fetchLinks(): Promise<LinkRow[]> {
   for (const columns of candidates) {
     const { data, error } = await supabase.from('link').select(columns);
     if (!error) {
-      return (data || []) as LinkRow[];
+      return Array.isArray(data)
+        ? (data as unknown as LinkRow[])
+        : [];
     }
     if (!isMissingColumnError(error)) {
       throw error;

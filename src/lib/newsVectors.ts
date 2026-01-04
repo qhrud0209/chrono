@@ -116,7 +116,7 @@ export const buildNewsEmbeddingText = (
 ): string => {
   const parts = [title, content]
     .map((part) => part?.trim())
-    .filter((part): part is string => Boolean(part) && part.length > 0);
+    .filter((part): part is string => typeof part === "string" && part.length > 0);
 
   if (parts.length === 0) return "";
 

@@ -362,7 +362,7 @@ async function loadNewsRows(client: SupabaseClient): Promise<NewsRow[]> {
   newsRows.forEach((row) => newsMap.set(row.id, row));
 
   return embeddings
-    .map((row) => {
+    .map((row): NewsRow | null => {
       const id = row.news_id ?? row.id;
       if (typeof id !== "number") return null;
       const news = newsMap.get(id);
@@ -372,7 +372,7 @@ async function loadNewsRows(client: SupabaseClient): Promise<NewsRow[]> {
         embedding: row.embedding ?? null,
       };
     })
-    .filter((row): row is NewsRow => Boolean(row));
+    .filter((row): row is NewsRow => row !== null);
 }
 
 async function main() {

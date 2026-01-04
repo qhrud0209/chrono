@@ -82,7 +82,7 @@ const chunkArray = <T,>(items: T[], size: number): T[][] => {
 async function fetchLinks(client: SupabaseClient): Promise<LinkRow[]> {
   const columnsList = ["id, URL", "id, url"];
   const data = await selectLinkRowsWithFallback(client, columnsList);
-  return data as LinkRow[];
+  return Array.isArray(data) ? (data as unknown as LinkRow[]) : [];
 }
 
 async function deleteLinks(client: SupabaseClient, ids: number[]) {
