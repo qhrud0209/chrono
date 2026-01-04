@@ -178,12 +178,17 @@ const KeywordTimelineView = ({ timeline }: KeywordTimelineProps) => {
                               </span>
                               <span className={styles.articleMeta}>
                                 {article.source}
-                                {article.publishedAt && (
+                                {article.source &&
+                                  article.publishedAt && (
                                   <>
                                     <span aria-hidden="true"> · </span>
                                     {formatArticleDate(article.publishedAt)}
                                   </>
                                 )}
+                                {!article.source &&
+                                  article.publishedAt && (
+                                    <>{formatArticleDate(article.publishedAt)}</>
+                                  )}
                               </span>
                             </a>
                           </li>

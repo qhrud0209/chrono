@@ -1,8 +1,9 @@
 import { buildApiBaseCandidates, buildEndpointUrl } from '@/lib/apiBase';
+import { getServiceSupabaseClient } from '@/lib/newsVectors';
 
 export type TimelineArticle = {
   title: string,
-  source: string,
+  source?: string | null,
   url: string,
   publishedAt: string,
 };
@@ -23,20 +24,6 @@ export type KeywordTimeline = {
   events: TimelineEvent[],
 };
 
-const FALLBACK_EVENTS: TimelineEvent[] = [
-  {
-    id: 'fallback-1',
-    dateLabel: '업데이트 예정',
-    title: '타임라인 데이터를 준비 중입니다',
-    summary:
-      '해당 키워드의 주요 사건을 수집하는 대로 이곳에 순차적으로 업데이트됩니다.',
-    articles: [],
-  },
-];
-
-const defaultIntro =
-  '해당 키워드에 대한 타임라인 데이터를 준비 중입니다. 최신 이슈가 모이는 대로 순차적으로 업데이트됩니다.';
-
 const decodeLabel = (value: string) => {
   try {
     const decoded = decodeURIComponent(value);
@@ -51,55 +38,130 @@ type TimelineMeta = {
   intro: string,
 };
 
-const KNOWN_TIMELINE_META: Record<string, TimelineMeta> = {
-  '36': {
-    keywordLabel: 'WWDC25',
-    intro:
-      '애플이 WWDC 2025에서 공개한 주요 발표와 이후 파급 효과를 시간 순으로 정리했습니다.',
-  },
+type KeywordRow = {
+  id: number,
+  keyword: string,
+  description?: string | null,
 };
 
-const resolveTimelineMeta = (
-  keywordId: string,
-  keywordLabel?: string,
-): TimelineMeta => {
-  const fromMap = KNOWN_TIMELINE_META[keywordId];
-  if (fromMap) {
-    return fromMap;
+const KEYWORD_TABLE = process.env.KEYWORD_TABLE?.trim() || 'keyword';
+
+const parseId = (value: string): number | null => {
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+};
+
+const normalizeKeywordInput = (value: string): string | null => {
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  try {
+    const decoded = decodeURIComponent(trimmed);
+    return decoded.trim() || null;
+  } catch {
+    return trimmed;
+  }
+};
+
+const fetchKeywordById = async (id: number): Promise<KeywordRow | null> => {
+  const { data, error } = await getServiceSupabaseClient()
+    .from(KEYWORD_TABLE)
+    .select('id, keyword, description')
+    .eq('id', id)
+    .limit(1);
+
+  if (error) {
+    throw new Error(`Failed to fetch keyword ${id}: ${error.message}`);
   }
 
-  const safeLabel = keywordLabel?.trim() || decodeLabel(keywordId);
+  return ((data || []) as KeywordRow[])[0] ?? null;
+};
+
+const fetchKeywordByName = async (
+  keyword: string,
+): Promise<KeywordRow | null> => {
+  const client = getServiceSupabaseClient();
+  const trimmed = keyword.trim();
+  if (!trimmed) return null;
+
+  const { data, error } = await client
+    .from(KEYWORD_TABLE)
+    .select('id, keyword, description')
+    .eq('keyword', trimmed)
+    .limit(1);
+
+  if (error) {
+    throw new Error(
+      `Failed to fetch keyword "${trimmed}": ${error.message}`,
+    );
+  }
+
+  if (data && data.length > 0) {
+    return (data as KeywordRow[])[0] ?? null;
+  }
+
+  const { data: ilikeData, error: ilikeError } = await client
+    .from(KEYWORD_TABLE)
+    .select('id, keyword, description')
+    .ilike('keyword', trimmed)
+    .limit(1);
+
+  if (ilikeError) {
+    throw new Error(
+      `Failed to fetch keyword "${trimmed}": ${ilikeError.message}`,
+    );
+  }
+
+  return ((ilikeData || []) as KeywordRow[])[0] ?? null;
+};
+
+const resolveTimelineMeta = async (
+  keywordId: string,
+): Promise<TimelineMeta> => {
+  const fallbackLabel = decodeLabel(keywordId);
+  try {
+    const numericId = parseId(keywordId);
+    const row =
+      numericId !== null
+        ? await fetchKeywordById(numericId)
+        : await fetchKeywordByName(
+            normalizeKeywordInput(keywordId) ?? keywordId,
+          );
+
+    if (row) {
+      return {
+        keywordLabel: row.keyword?.trim() || fallbackLabel,
+        intro: row.description?.trim() || '',
+      };
+    }
+  } catch (error) {
+    console.error('Failed to resolve timeline meta', error);
+  }
+
   return {
-    keywordLabel: safeLabel,
-    intro: defaultIntro,
+    keywordLabel: fallbackLabel,
+    intro: '',
   };
 };
 
 const buildFallbackTimeline = (
   keywordId: string,
-  keywordLabel?: string,
-): KeywordTimeline => {
-  const meta = resolveTimelineMeta(keywordId, keywordLabel);
-  return {
-    keywordId,
-    keywordLabel: meta.keywordLabel,
-    intro: meta.intro,
-    events: FALLBACK_EVENTS,
-  };
-};
+  meta: TimelineMeta,
+): KeywordTimeline => ({
+  keywordId,
+  keywordLabel: meta.keywordLabel,
+  intro: meta.intro,
+  events: [],
+});
 
 export const buildTimelineForKeyword = async (
   keywordId: string,
-  keywordLabel?: string,
 ): Promise<KeywordTimeline> => {
-  const remoteTimeline = await buildTimelineFromServer(
-    keywordId,
-    keywordLabel,
-  );
+  const meta = await resolveTimelineMeta(keywordId);
+  const remoteTimeline = await buildTimelineFromServer(keywordId, meta);
   if (remoteTimeline) {
     return remoteTimeline;
   }
-  return buildFallbackTimeline(keywordId, keywordLabel);
+  return buildFallbackTimeline(keywordId, meta);
 };
 
 type ServerEventRecord = {
@@ -127,7 +189,7 @@ type ServerNewsResponse = {
 
 const buildTimelineFromServer = async (
   keywordId: string,
-  keywordLabel?: string,
+  meta: TimelineMeta,
 ): Promise<KeywordTimeline | null> => {
   const bases = buildApiBaseCandidates();
   for (const base of bases) {
@@ -139,7 +201,6 @@ const buildTimelineFromServer = async (
       return null;
     }
 
-    const meta = resolveTimelineMeta(keywordId, keywordLabel);
     const timelineEvents = await Promise.all(
       events.map(async event => {
         const news = await fetchNewsFromBase(base, event.eventId);
@@ -247,7 +308,7 @@ const mapServerNewsToArticle = (
   }
 
   const title = (item.headline ?? '').trim() || '제목 미정';
-  const source = (item.media ?? '').trim() || '언론사 미기재';
+  const source = (item.media ?? '').trim() || null;
 
   return {
     title,

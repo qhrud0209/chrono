@@ -7,13 +7,33 @@ import { useRouter } from 'next/navigation';
 export default function Home() {
   const router = useRouter();
   const [q, setQ] = useState('');
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<
+    { id: number; keyword: string }[]
+  >([]);
+  const [isLoading, setIsLoading] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const requestIdRef = useRef(0);
 
-  const onSubmit = (e: FormEvent<HTMLFormElement>) => {
+  const onSubmit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const query = q.trim();
     if (query) {
+      try {
+        const res = await fetch(
+          `/api/related?q=${encodeURIComponent(query)}&limit=1`,
+        );
+        if (!res.ok) throw new Error('failed');
+        const json = (await res.json()) as {
+          related?: { id: number; keyword: string }[];
+        };
+        const top = json.related?.[0];
+        if (top) {
+          router.push(`/keyword/${encodeURIComponent(String(top.id))}`);
+          return;
+        }
+      } catch {
+        // fall through to keyword query
+      }
       router.push(`/keyword?q=${encodeURIComponent(query)}`);
     }
   };
@@ -21,17 +41,15 @@ export default function Home() {
   useEffect(() => {
     const query = q.trim();
     if (!query) {
+      abortRef.current?.abort();
       setSuggestions([]);
-      return;
-    }
-
-    // Special-case suggestions for queries including "apec"
-    if (query.toLowerCase().includes('apec')) {
-      setSuggestions(['apec', '경주', '트럼프']);
+      setIsLoading(false);
       return;
     }
 
     // 이전 요청 취소 후 새 컨트롤러 생성
+    const requestId = ++requestIdRef.current;
+    setIsLoading(true);
     const controller = new AbortController();
     abortRef.current?.abort();
     abortRef.current = controller;
@@ -42,15 +60,19 @@ export default function Home() {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error('failed');
-        const json = (await res.json()) as { related?: string[] };
+        const json = (await res.json()) as {
+          related?: { id: number; keyword: string }[];
+        };
+        if (requestId !== requestIdRef.current) return;
         setSuggestions(json.related ?? []);
       } catch (err: any) {
         // 사용자가 입력을 바꾸면서 abort 된 경우는 무시
-        if (err?.name !== 'AbortError') {
-          setSuggestions([]);
-        }
+        if (requestId !== requestIdRef.current) return;
+        if (err?.name !== 'AbortError') setSuggestions([]);
+      } finally {
+        if (requestId === requestIdRef.current) setIsLoading(false);
       }
-    }, 250);
+    }, 200);
 
     return () => {
       clearTimeout(t);
@@ -58,8 +80,8 @@ export default function Home() {
     };
   }, [q]);
 
-  const choose = (term: string) => {
-    router.push(`/keyword?q=${encodeURIComponent(term)}`);
+  const choose = (item: { id: number; keyword: string }) => {
+    router.push(`/keyword/${encodeURIComponent(String(item.id))}`);
   };
 
   return (
@@ -94,11 +116,18 @@ export default function Home() {
           </button>
         </form>
 
+        {isLoading && (
+          <div className="suggestions-loading" role="status" aria-live="polite">
+            <span className="spinner" aria-hidden="true" />
+            <span className="sr-only">연관 키워드 불러오는 중</span>
+          </div>
+        )}
+
         {suggestions.length > 0 && (
           <div className="suggestions" role="listbox" aria-label="유사 검색어">
             {suggestions.map((s) => (
               <button
-                key={s}
+                key={s.id}
                 type="button"
                 className="suggestion-item"
                 onMouseDown={(e) => {
@@ -106,7 +135,7 @@ export default function Home() {
                   choose(s);
                 }}
               >
-                {s}
+                {s.keyword}
               </button>
             ))}
           </div>

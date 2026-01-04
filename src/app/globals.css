@@ -110,6 +110,25 @@ body {
   box-shadow: 0 10px 30px rgba(17, 24, 39, 0.06);
   overflow: hidden;
 }
+.suggestions-loading {
+  width: min(720px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 14px;
+  justify-content: center;
+}
+.spinner {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #2563eb;
+  animation: spin 0.8s linear infinite;
+}
 .suggestion-item {
   display: block;
   width: 100%;
@@ -150,4 +169,10 @@ body {
 .search-button:focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.28);
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

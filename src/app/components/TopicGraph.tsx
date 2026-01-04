@@ -113,10 +113,7 @@ const TopicGraph = ({ center, related }: TopicGraphProps) => {
       }
     : undefined;
 
-  const hintLabel =
-    visibleHint?.action === 'chronology'
-      ? 'WWDC25'
-      : visibleHint?.label;
+  const hintLabel = visibleHint?.label ?? '키워드';
 
   const hintActionText =
     visibleHint?.action === 'chronology'

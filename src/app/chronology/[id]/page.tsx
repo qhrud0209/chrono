@@ -25,6 +25,7 @@ export default async function Page({
 }) {
   const { id } = await params;
   const timeline = await buildTimelineForKeyword(id);
+  const intro = timeline.intro.trim();
 
   return (
     <div
@@ -34,7 +35,7 @@ export default async function Page({
         <header className={styles.header}>
           <span className={styles.label}>Keyword chronology</span>
           <h1 className={styles.title}>{timeline.keywordLabel}</h1>
-          <p className={styles.intro}>{timeline.intro}</p>
+          {intro && <p className={styles.intro}>{intro}</p>}
         </header>
         <KeywordTimeline timeline={timeline} />
       </main>
